@@ -2398,7 +2398,7 @@ private:
       return true;
 
     // If a (non-string) literal follows, this is likely a cast.
-    if (Tok.Next->isOneOf(tok::kw_sizeof, tok::kw_alignof) ||
+    if (Tok.Next->isOneOf(tok::kw_sizeof, tok::kw_alignof, tok::kw___deltaof) ||
         (Tok.Next->Tok.isLiteral() && Tok.Next->isNot(tok::string_literal))) {
       return true;
     }
@@ -2522,7 +2522,7 @@ private:
     // We put sizeof here instead of only in determineStarAmpUsage. In the cases
     // where the unary `+` operator is overloaded, it is reasonable to write
     // things like `sizeof +x`. Like commit 446d6ec996c6c3.
-    if (PrevToken->is(tok::kw_sizeof))
+    if (PrevToken->isOneOf(tok::kw_sizeof, tok::kw___deltaof))
       return true;
 
     // A sequence of leading unary operators.

@@ -191,6 +191,7 @@ namespace clang {
   class TemplateDecl;
   class TemplateInstantiationCallback;
   class TemplateParameterList;
+  class WidbergLocation;
   class TemplatePartialOrderingContext;
   class TemplateTemplateParmDecl;
   class Token;
@@ -6520,6 +6521,8 @@ public:
          ArrayRef<ParsedType> DynamicExceptions,
          ArrayRef<SourceRange> DynamicExceptionRanges,
          Expr *NoexceptExpr);
+
+  void ActOnWidbergLocation(Declarator &D, SourceLocation ATLoc, SourceLocation LAngleLoc, ArrayRef<IdentifierLoc *> RegisterIdentifiers, SourceLocation RAngleLoc);
 
   class InheritedConstructorInfo;
 

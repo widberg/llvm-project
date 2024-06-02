@@ -2952,7 +2952,8 @@ enum CXTypeKind {
 
   CXType_ExtVector = 176,
   CXType_Atomic = 177,
-  CXType_BTFTagAttributed = 178
+  CXType_BTFTagAttributed = 178,
+  CXType_Shifted = 179,
 };
 
 /**
@@ -2982,6 +2983,9 @@ enum CXCallingConv {
   CXCallingConv_AArch64SVEPCS = 18,
   CXCallingConv_M68kRTD = 19,
 
+  CXCallingConv_UserCall = 98,
+  CXCallingConv_UserPurge = 99,
+  
   CXCallingConv_Invalid = 100,
   CXCallingConv_Unexposed = 200
 };

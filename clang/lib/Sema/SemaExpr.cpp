@@ -4456,7 +4456,7 @@ bool Sema::CheckUnaryExprOrTypeTraitOperand(Expr *E,
   bool IsUnevaluatedOperand =
       (ExprKind == UETT_SizeOf || ExprKind == UETT_DataSizeOf ||
        ExprKind == UETT_AlignOf || ExprKind == UETT_PreferredAlignOf ||
-       ExprKind == UETT_VecStep);
+       ExprKind == UETT_VecStep || ExprKind == UETT_DeltaOf);
   if (IsUnevaluatedOperand) {
     ExprResult Result = CheckUnevaluatedOperand(E);
     if (Result.isInvalid())
@@ -4528,7 +4528,7 @@ bool Sema::CheckUnaryExprOrTypeTraitOperand(Expr *E,
                                        E->getSourceRange(), ExprKind))
     return true;
 
-  if (ExprKind == UETT_SizeOf) {
+  if (ExprKind == UETT_SizeOf || ExprKind == UETT_DeltaOf) {
     if (const auto *DeclRef = dyn_cast<DeclRefExpr>(E->IgnoreParens())) {
       if (const auto *PVD = dyn_cast<ParmVarDecl>(DeclRef->getFoundDecl())) {
         QualType OType = PVD->getOriginalType();
@@ -4704,6 +4704,7 @@ static void captureVariablyModifiedType(ASTContext &Context, QualType T,
     case Type::UnaryTransform:
     case Type::Attributed:
     case Type::BTFTagAttributed:
+    case Type::Shifted:
     case Type::SubstTemplateTypeParm:
     case Type::MacroQualified:
       // Keep walking after single level desugaring.
@@ -4881,6 +4882,8 @@ Sema::CreateUnaryExprOrTypeTraitExpr(Expr *E, SourceLocation OpLoc,
   } else if (ExprKind == UETT_OpenMPRequiredSimdAlign) {
       Diag(E->getExprLoc(), diag::err_openmp_default_simd_align_expr);
       isInvalid = true;
+  } else if (ExprKind == UETT_DeltaOf) {
+      isInvalid = CheckUnaryExprOrTypeTraitOperand(E, UETT_DeltaOf);
   } else if (E->refersToBitField()) {  // C99 6.5.3.4p1.
     Diag(E->getExprLoc(), diag::err_sizeof_alignof_typeof_bitfield) << 0;
     isInvalid = true;
@@ -18756,6 +18759,8 @@ static bool funcHasParameterSizeMangling(Sema &S, FunctionDecl *FD) {
   case CC_X86StdCall:
   case CC_X86FastCall:
   case CC_X86VectorCall:
+  case CC_UserCall:
+  case CC_UserPurge:
     return true;
   default:
     break;
@@ -18793,6 +18798,12 @@ static void CheckCompleteParameterTypesForMangler(Sema &S, FunctionDecl *FD,
         break;
       case CC_X86VectorCall:
         CCName = "vectorcall";
+        break;
+      case CC_UserCall:
+        CCName = "usercall";
+        break;
+      case CC_UserPurge:
+        CCName = "userpurge";
         break;
       default:
         llvm_unreachable("CC does not need mangling");

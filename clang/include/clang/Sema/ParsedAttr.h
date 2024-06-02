@@ -202,6 +202,20 @@ private:
   friend class AttributeFactory;
   friend class AttributePool;
 
+  ParsedAttr(IdentifierInfo *attrName, SourceRange attrRange,
+             IdentifierInfo *scopeName, SourceLocation scopeLoc,
+             ArgsUnion *args, unsigned numArgs, Form formUsed)
+      : AttributeCommonInfo(attrName, scopeName, attrRange, scopeLoc,
+                            formUsed),
+        NumArgs(numArgs), Invalid(false),
+        UsedAsTypeAttr(false), IsAvailability(false),
+        IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(false),
+        HasProcessingCache(false), IsPragmaClangAttribute(false),
+        Info(ParsedAttrInfo::get(*this)) {
+    if (numArgs)
+      memcpy(getArgsBuffer(), args, numArgs * sizeof(ArgsUnion));
+  }
+
   /// Constructor for attributes with expression arguments.
   ParsedAttr(IdentifierInfo *attrName, SourceRange attrRange,
              IdentifierInfo *scopeName, SourceLocation scopeLoc,
@@ -269,6 +283,21 @@ private:
     new (&ExtraData.MatchingCType) ParsedType(matchingCType);
     ExtraData.LayoutCompatible = layoutCompatible;
     ExtraData.MustBeNull = mustBeNull;
+  }
+
+  // Constructor for shifted attribute.
+  ParsedAttr(IdentifierInfo *attrName, SourceRange attrRange,
+             IdentifierInfo *scopeName, SourceLocation scopeLoc,
+             ParsedType parent, Expr *delta, Form formUsed)
+      : AttributeCommonInfo(attrName, scopeName, attrRange, scopeLoc,
+                            formUsed),
+        NumArgs(1), Invalid(false), UsedAsTypeAttr(true),
+        IsAvailability(false), IsTypeTagForDatatype(false), IsProperty(false),
+        HasParsedType(true), HasProcessingCache(false),
+        IsPragmaClangAttribute(false), Info(ParsedAttrInfo::get(*this)) {
+    ArgsUnion PVal(delta);
+    memcpy(getArgsBuffer(), &PVal, sizeof(ArgsUnion));
+    new (&getTypeBuffer()) ParsedType(parent);
   }
 
   /// Constructor for attributes with a single type argument.
@@ -427,6 +456,18 @@ public:
     assert(getParsedKind() == AT_Availability &&
            "Not an availability attribute");
     return MessageExpr;
+  }
+
+  Expr *getDelta() const {
+    assert(getParsedKind() == AT_Shifted &&
+           "Not a shifted attribute");
+    return getArgAsExpr(0);
+  }
+
+  const ParsedType &getParent() const {
+    assert(getParsedKind() == AT_Shifted &&
+           "Not a shifted attribute");
+    return getTypeBuffer();
   }
 
   const Expr *getReplacementExpr() const {
@@ -627,6 +668,10 @@ public:
         ParsedAttr::totalSizeToAlloc<ArgsUnion, detail::AvailabilityData,
                                      detail::TypeTagForDatatypeData, ParsedType,
                                      detail::PropertyData>(1, 0, 1, 0, 0),
+    ShiftedAllocSize =
+        ParsedAttr::totalSizeToAlloc<ArgsUnion, detail::AvailabilityData,
+                                     detail::TypeTagForDatatypeData, ParsedType,
+                                     detail::PropertyData>(1, 0, 0, 1, 0),
     PropertyAllocSize =
         ParsedAttr::totalSizeToAlloc<ArgsUnion, detail::AvailabilityData,
                                      detail::TypeTagForDatatypeData, ParsedType,
@@ -778,6 +823,15 @@ public:
     return add(new (memory) ParsedAttr(attrName, attrRange, scopeName, scopeLoc,
                                        argumentKind, matchingCType,
                                        layoutCompatible, mustBeNull, form));
+  }
+
+  ParsedAttr *
+  createShifted(IdentifierInfo *attrName, SourceRange attrRange,
+                           IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                           ParsedType parent, Expr *delta, ParsedAttr::Form form) {
+    void *memory = allocate(AttributeFactory::ShiftedAllocSize);
+    return add(new (memory) ParsedAttr(attrName, attrRange, scopeName, scopeLoc,
+                                       parent, delta, form));
   }
 
   ParsedAttr *createTypeAttribute(IdentifierInfo *attrName,
@@ -1011,6 +1065,17 @@ public:
     ParsedAttr *attr = pool.createTypeTagForDatatype(
         attrName, attrRange, scopeName, scopeLoc, argumentKind, matchingCType,
         layoutCompatible, mustBeNull, form);
+    addAtEnd(attr);
+    return attr;
+  }
+
+  /// Add shifted attribute.
+  ParsedAttr *
+  addNewShifted(IdentifierInfo *attrName, SourceRange attrRange,
+                           IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                           ParsedType parent, Expr *delta, ParsedAttr::Form form) {
+    ParsedAttr *attr = pool.createShifted(
+        attrName, attrRange, scopeName, scopeLoc, parent, delta, form);
     addAtEnd(attr);
     return attr;
   }

@@ -419,7 +419,7 @@ void RISCVIntrinsicManagerImpl::CreateRVVIntrinsicDecl(LookupResult &LR,
     ArgTypes.push_back(RVVType2Qual(Context, Sigs[i]));
 
   FunctionProtoType::ExtProtoInfo PI(
-      Context.getDefaultCallingConvention(false, false, true));
+      Context.getDefaultCallingConvention(false, false, true), nullptr);
 
   PI.Variadic = false;
 

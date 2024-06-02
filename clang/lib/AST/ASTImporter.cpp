@@ -1732,6 +1732,18 @@ ExpectedType clang::ASTNodeImporter::VisitBTFTagAttributedType(
                                                          ToWrappedType);
 }
 
+ExpectedType clang::ASTNodeImporter::VisitShiftedType(
+    const clang::ShiftedType *T) {
+  Error Err = Error::success();
+  const ShiftedAttr *ToShiftedAttr = importChecked(Err, T->getAttr());
+  QualType ToWrappedType = importChecked(Err, T->getWrappedType());
+  if (Err)
+    return std::move(Err);
+
+  return Importer.getToContext().getShiftedType(ToShiftedAttr,
+                                                         ToWrappedType);
+}
+
 ExpectedType clang::ASTNodeImporter::VisitConstantMatrixType(
     const clang::ConstantMatrixType *T) {
   ExpectedType ToElementTypeOrErr = import(T->getElementType());

@@ -1187,7 +1187,9 @@ bool X86FastISel::X86SelectRet(const Instruction *I) {
       CC != CallingConv::X86_StdCall &&
       CC != CallingConv::X86_ThisCall &&
       CC != CallingConv::X86_64_SysV &&
-      CC != CallingConv::Win64)
+      CC != CallingConv::Win64 &&
+      CC != CallingConv::UserCall &&
+      CC != CallingConv::UserPurge)
     return false;
 
   // Don't handle popping bytes if they don't fit the ret's immediate.
@@ -3233,6 +3235,10 @@ bool X86FastISel::fastLowerCall(CallLoweringInfo &CLI) {
 
   // Indirect calls with CFI checks need special handling.
   if (CB && CB->isIndirectCall() && CB->getOperandBundle(LLVMContext::OB_kcfi))
+    return false;
+
+  // Functions with spoils that need special handling.
+  if ((CB && CB->hasFnAttr("spoils")))
     return false;
 
   // Functions using thunks for indirect calls need to use SDISel.
